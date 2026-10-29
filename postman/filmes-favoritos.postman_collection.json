@@ -1,0 +1,133 @@
+{
+  "info": {
+    "_postman_id": "d0ea6c3e-80db-4c36-a889-1a73f904f7c1",
+    "name": "Filmes Favoritos API",
+    "description": "Demonstra CRUD, validação, duplicidade, REST Client, fallback, health checks e métricas. Execute Criar favorito antes das requisições que usam {{id}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "id", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "CRUD e validação",
+      "item": [
+        {
+          "name": "Listar favoritos (200)",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/filmes-favoritos" }
+        },
+        {
+          "name": "Criar favorito (201 + Location)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('id', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"titulo\":\"Central do Brasil\",\"diretor\":\"Walter Salles\",\"ano\":1998,\"genero\":\"Drama\"}" },
+            "url": "{{baseUrl}}/filmes-favoritos"
+          }
+        },
+        {
+          "name": "Consultar por id (200)",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/filmes-favoritos/{{id}}" }
+        },
+        {
+          "name": "Atualizar (200)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"titulo\":\"Central do Brasil\",\"diretor\":\"Walter Salles\",\"ano\":1998,\"genero\":\"Drama histórico\"}" },
+            "url": "{{baseUrl}}/filmes-favoritos/{{id}}"
+          }
+        },
+        {
+          "name": "Dados inválidos (400 padronizado)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"titulo\":\"\",\"diretor\":\"X\",\"ano\":1800,\"genero\":\"Drama\"}" },
+            "url": "{{baseUrl}}/filmes-favoritos"
+          }
+        },
+        {
+          "name": "Filme ausente (404 padronizado)",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/filmes-favoritos/99999999" }
+        }
+      ]
+    },
+    {
+      "name": "Regra de duplicidade",
+      "item": [
+        {
+          "name": "Criar primeiro título",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"titulo\":\"Amélie\",\"diretor\":\"Jean-Pierre Jeunet\",\"ano\":2001,\"genero\":\"Comédia\"}" },
+            "url": "{{baseUrl}}/filmes-favoritos"
+          }
+        },
+        {
+          "name": "Duplicado sem acento/capitalização (409)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"titulo\":\"amelie\",\"diretor\":\"Outro diretor\",\"ano\":2001,\"genero\":\"Comédia\"}" },
+            "url": "{{baseUrl}}/filmes-favoritos"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Integração, saúde e observabilidade",
+      "item": [
+        {
+          "name": "Catálogo externo UP",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/filmes-favoritos/{{id}}/catalogo" }
+        },
+        {
+          "name": "Desligar mock",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"disponivel\":false}" },
+            "url": "{{baseUrl}}/mock/catalogo/disponibilidade"
+          }
+        },
+        {
+          "name": "Catálogo DOWN (fallback)",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/filmes-favoritos/{{id}}/catalogo" }
+        },
+        {
+          "name": "Restaurar mock",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"disponivel\":true}" },
+            "url": "{{baseUrl}}/mock/catalogo/disponibilidade"
+          }
+        },
+        {
+          "name": "Liveness",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/q/health/live" }
+        },
+        {
+          "name": "Readiness",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/q/health/ready" }
+        },
+        {
+          "name": "Métricas Prometheus",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/q/metrics" }
+        },
+        {
+          "name": "Configuração externa",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/info" }
+        },
+        {
+          "name": "Excluir favorito (204; executar por último)",
+          "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/filmes-favoritos/{{id}}" }
+        }
+      ]
+    }
+  ]
+}
