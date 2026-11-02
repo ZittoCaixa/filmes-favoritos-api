@@ -1,3 +1,9 @@
+#️⃣ Aluno: RAMON MARQUES COUTINHO
+#️⃣ Matrícula CAIXA: C078969-0
+#️⃣ Assistente Pleno
+#️⃣ CESOB
+
+
 # Filmes Favoritos API
 
 API REST de gestão de filmes favoritos, desenvolvida com Java 21, Quarkus 3 e Maven. O projeto demonstra CRUD transacional com Hibernate ORM/Panache e H2, validação, regra contra filmes duplicados, integração REST com mock local, resiliência, health checks e métricas Micrometer. A aplicação de referência `catalogo-api` foi mantida intacta.
