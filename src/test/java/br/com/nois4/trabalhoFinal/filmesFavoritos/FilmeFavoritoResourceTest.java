@@ -61,6 +61,14 @@ class FilmeFavoritoResourceTest {
     }
 
     @Test
+    void rejeitaConsultaDoCatalogoSemTituloComErroEspecifico() {
+        given().when().get("/mock/catalogo/filmes?titulo=").then().statusCode(400)
+                .body("codigo", is("CONSULTA_INVALIDA"))
+                .body("mensagem", is("O parâmetro 'titulo' é obrigatório."))
+                .body("timestamp", notNullValue());
+    }
+
+    @Test
     void usaFallbackQuandoCatalogoMockEstaIndisponivel() {
         int id = given().contentType(ContentType.JSON).body(filme("Filme Integração Teste"))
                 .when().post("/filmes-favoritos").then().statusCode(201).extract().path("id");
@@ -90,7 +98,12 @@ class FilmeFavoritoResourceTest {
         int id = given().contentType(ContentType.JSON).body(filme("Métrica de negócio teste"))
                 .when().post("/filmes-favoritos").then().statusCode(201).extract().path("id");
         given().when().get("/q/metrics").then().statusCode(200)
-                .body(containsString("filmes_favoritos_criados_total"));
+                .body(containsString("filmes_favoritos_criados_total"))
+                .body(containsString("api_requisicoes_total"))
+                .body(containsString("api_tempo_resposta_seconds_count"))
+                .body(containsString("api_tempo_medio_resposta_seconds"))
+                .body(containsString("api_erros_total"))
+                .body(containsString("api_taxa_erros"));
         given().when().delete("/filmes-favoritos/" + id).then().statusCode(204);
     }
 }

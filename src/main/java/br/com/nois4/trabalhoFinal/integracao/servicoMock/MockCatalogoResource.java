@@ -1,7 +1,7 @@
 package br.com.nois4.trabalhoFinal.integracao.servicoMock;
 
+import br.com.nois4.trabalhoFinal.filmesFavoritos.domain.ConsultaInvalidaException;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
@@ -21,7 +21,10 @@ public class MockCatalogoResource {
 
     @GET
     @Path("/filmes")
-    public Response consultar(@QueryParam("titulo") @NotBlank String titulo) {
+    public Response consultar(@QueryParam("titulo") String titulo) {
+        if (titulo == null || titulo.isBlank()) {
+            throw new ConsultaInvalidaException("O parâmetro 'titulo' é obrigatório.");
+        }
         if (!state.isDisponivel()) {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE)
                     .entity(new FilmeCatalogoResponse(titulo, false, "mock-local", false,

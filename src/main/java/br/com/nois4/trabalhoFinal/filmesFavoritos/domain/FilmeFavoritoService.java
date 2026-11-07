@@ -7,7 +7,9 @@ import br.com.nois4.trabalhoFinal.plataform.metrics.MetricasNegocio;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.persistence.PersistenceException;
 import jakarta.transaction.Transactional;
+import org.jboss.logging.Logger;
 
 import java.text.Normalizer;
 import java.time.Instant;
@@ -16,6 +18,7 @@ import java.util.Locale;
 
 @ApplicationScoped
 public class FilmeFavoritoService {
+    private static final Logger LOGGER = Logger.getLogger(FilmeFavoritoService.class);
     private final FilmeFavoritoRepository repository;
     private final MetricasNegocio metricas;
 
@@ -25,12 +28,24 @@ public class FilmeFavoritoService {
     }
 
     public List<FilmeFavoritoEntity> listar() {
-        PanacheQuery<FilmeFavoritoEntity> query = repository.findAll(Sort.by("id"));
-        return query.list();
+        try {
+            PanacheQuery<FilmeFavoritoEntity> query = repository.findAll(Sort.by("id"));
+            List<FilmeFavoritoEntity> filmes = query.list();
+            LOGGER.debugf("Consulta de filmes favoritos concluída: %d registro(s).", filmes.size());
+            return filmes;
+        } catch (PersistenceException exception) {
+            LOGGER.error("Falha ao consultar filmes favoritos.", exception);
+            throw new ErroNaConsultaException("Não foi possível consultar os filmes favoritos.", exception);
+        }
     }
 
     public FilmeFavoritoEntity buscar(Long id) {
-        return repository.findByIdOptional(id).orElseThrow(() -> new FilmeNaoEncontradoException(id));
+        try {
+            return repository.findByIdOptional(id).orElseThrow(() -> new FilmeNaoEncontradoException(id));
+        } catch (PersistenceException exception) {
+            LOGGER.errorf(exception, "Falha ao consultar filme favorito com id %d.", id);
+            throw new ErroNaConsultaException("Não foi possível consultar o filme favorito.", exception);
+        }
     }
 
     @Transactional
@@ -48,6 +63,7 @@ public class FilmeFavoritoService {
         entity.criadoEm = Instant.now();
         repository.persist(entity);
         metricas.registrarFilmeCriado();
+        LOGGER.infof("Filme favorito criado: id=%d, titulo='%s'.", entity.id, entity.titulo);
         return entity;
     }
 
@@ -65,6 +81,7 @@ public class FilmeFavoritoService {
         entity.diretor = request.diretor().trim();
         entity.ano = request.ano();
         entity.genero = request.genero().trim();
+        LOGGER.infof("Filme favorito atualizado: id=%d.", entity.id);
         return entity;
     }
 
@@ -73,6 +90,7 @@ public class FilmeFavoritoService {
         if (!repository.deleteById(id)) {
             throw new FilmeNaoEncontradoException(id);
         }
+        LOGGER.infof("Filme favorito excluído: id=%d.", id);
     }
 
     private static String normalizarTitulo(String titulo) {

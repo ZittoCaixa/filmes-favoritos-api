@@ -6,7 +6,7 @@
 
 # Filmes Favoritos API
 
-API REST de gestão de filmes favoritos, desenvolvida com Java 21, Quarkus 3 e Maven. O projeto demonstra CRUD transacional com Hibernate ORM/Panache e H2, validação, regra contra filmes duplicados, integração REST com mock local, resiliência, health checks e métricas Micrometer. A aplicação de referência `catalogo-api` foi mantida intacta.
+API REST de gestão de filmes favoritos, desenvolvida com Java 21, Quarkus 3 e Maven. O projeto demonstra CRUD transacional com Hibernate ORM/Panache e H2, validação, regra contra filmes duplicados, exceções específicas, integração REST com mock local, resiliência, health checks, métricas Micrometer por endpoint e logging de requisições. A aplicação de referência `catalogo-api` foi mantida intacta.
 
 ## Executar
 
@@ -50,11 +50,20 @@ Recurso: `/filmes-favoritos`
 | PUT | `/filmes-favoritos/{id}` | 200 com o recurso atualizado |
 | DELETE | `/filmes-favoritos/{id}` | 204 ou 404 |
 
-O JSON de criação/atualização exige `titulo`, `diretor`, `ano` (entre 1888 e 2100) e `genero`. A regra de negócio considera duplicados títulos iguais após remoção de acentos e comparação sem distinção entre maiúsculas/minúsculas; uma tentativa duplicada retorna 409. Os erros de validação (400), ausência (404) e duplicidade (409) usam `codigo`, `mensagem` e `timestamp`.
+O JSON de criação/atualização exige `titulo`, `diretor`, `ano` (entre 1888 e 2100) e `genero`. A regra de negócio considera duplicados títulos iguais após remoção de acentos e comparação sem distinção entre maiúsculas/minúsculas; uma tentativa duplicada retorna 409. Os erros usam o formato `codigo`, `mensagem` e `timestamp`: validação e consulta inválida (400), filme ausente (404), duplicidade (409) e falha de consulta ao banco (500).
+
+| Exceção | Código | HTTP | Exemplo |
+|---|---|---:|---|
+| `ConsultaInvalidaException` | `CONSULTA_INVALIDA` | 400 | `GET /mock/catalogo/filmes?titulo=` |
+| `FilmeNaoEncontradoException` | `FILME_NAO_ENCONTRADO` | 404 | `GET /filmes-favoritos/999999` |
+| `FilmeDuplicadoException` | `FILME_DUPLICADO` | 409 | Criar novamente um título já cadastrado |
+| `ErroNaConsultaException` | `ERRO_NA_CONSULTA` | 500 | Falha de persistência ao listar ou buscar filmes |
+
+Uma indisponibilidade do catálogo externo continua atendida pelo fallback local (HTTP 200); a causa é registrada no log como falha de consulta.
 
 ## Integração mock e resiliência
 
-`FilmesMockClient` consome o endpoint mock local `/mock/catalogo/filmes`. Para consultar o catálogo relacionado a um favorito, use `GET /filmes-favoritos/{id}/catalogo`. O serviço de integração tenta novamente duas vezes e, se persistir a falha HTTP/conexão, aplica fallback JSON controlado com `fallback: true`.
+    `FilmesMockClient` consome o endpoint mock local `/mock/catalogo/filmes`. Para consultar o catálogo relacionado a um favorito, use `GET /filmes-favoritos/{id}/catalogo`. O serviço de integração tenta novamente duas vezes e, se persistir a falha HTTP/conexão, aplica fallback JSON controlado com `fallback: true`.
 
 ```powershell
 # Criar o filme e guardar o id retornado
@@ -78,9 +87,13 @@ Invoke-RestMethod -Method Put -Uri http://localhost:8080/mock/catalogo/disponibi
 - `GET /q/health/live`: verifica se o processo está vivo; deve ficar DOWN quando a instância não consegue operar.
 - `GET /q/health/ready`: verifica se o banco está acessível e se a aplicação está habilitada para receber tráfego. É possível controlar essa condição na demonstração: `PUT /admin/readiness` com `{"disponivel":false}` e depois `true`.
 - `GET /q/metrics`: scrape Prometheus. A série `filmes_favoritos_criados_total` aumenta após cada criação bem-sucedida.
+- Para cada endpoint REST, `api_requisicoes_total` conta as chamadas, `api_tempo_medio_resposta_seconds` expõe o tempo médio, `api_tempo_resposta_seconds_sum` e `api_tempo_resposta_seconds_count` permitem calcular a média em consultas Prometheus, `api_erros_total` conta respostas HTTP 4xx/5xx e `api_taxa_erros` expõe a proporção de erros. As séries são identificadas pelas tags `endpoint` e `metodo`.
+- Exemplos de consulta Prometheus: `api_tempo_medio_resposta_seconds{endpoint="FilmeFavoritoResource.listar",metodo="GET"}` para duração média; `api_taxa_erros{endpoint="FilmeFavoritoResource.buscar",metodo="GET"}` para a proporção de erros desse endpoint.
 - `GET /info`: mostra `app.nome`, configurável por `APP_NOME`.
 
-Exemplo de requisição inválida: `POST /filmes-favoritos` com `{"titulo":"","diretor":"X","ano":1800,"genero":"Drama"}` retorna 400 padronizado. Um `GET /filmes-favoritos/999999` retorna 404 padronizado.
+As requisições e seus resultados são registrados com método, endpoint, status e duração; respostas 4xx são registradas como avisos e 5xx como erros. Corpos de requisição não são registrados.
+
+Exemplo de requisição inválida: `POST /filmes-favoritos` com `{"titulo":"","diretor":"X","ano":1800,"genero":"Drama"}` retorna 400 padronizado. `GET /mock/catalogo/filmes?titulo=` retorna `CONSULTA_INVALIDA` (400), e `GET /filmes-favoritos/999999` retorna `FILME_NAO_ENCONTRADO` (404).
 
 ## Lombok e arquitetura
 

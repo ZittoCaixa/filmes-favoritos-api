@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "d0ea6c3e-80db-4c36-a889-1a73f904f7c1",
     "name": "Filmes Favoritos API",
-    "description": "Demonstra CRUD, validação, duplicidade, REST Client, fallback, health checks e métricas. Execute Criar favorito antes das requisições que usam {{id}}.",
+    "description": "Demonstra CRUD, validação, exceções específicas, duplicidade, REST Client, fallback, health checks, métricas por endpoint e logging. Execute Criar favorito antes das requisições que usam {{id}}.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -52,6 +52,10 @@
         {
           "name": "Filme ausente (404 padronizado)",
           "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/filmes-favoritos/99999999" }
+        },
+        {
+          "name": "Consulta inválida do catálogo (400 CONSULTA_INVALIDA)",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/mock/catalogo/filmes?titulo=" }
         }
       ]
     },
